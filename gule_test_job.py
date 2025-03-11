@@ -172,7 +172,7 @@ if missing_ids:
     
     formatted_message = "\n".join(message_lines)
     
-    webhook_url = "https://hooks.slack.com/services/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"
+    webhook_url = "https://hooks.slack.com/services/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"
     slack_message = {
         "text": formatted_message
     }
