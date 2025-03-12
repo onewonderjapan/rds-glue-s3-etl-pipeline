@@ -1,0 +1,21 @@
+{
+    "configs": {               
+        "onewonder": {
+            "Secrets Manager": {
+                "username": "maria",
+                "password": "wangxingran1995",
+                "table_name": "onewonder_data",
+                "db_name": "onewonder"
+            },
+            "S3": {
+                "source_bucket": "mariabd-old",
+                "source_key": "test.json",
+                "destination_bucket": "maria-new",
+                "destination_file": "test.csv"
+            },
+            "Glue": {
+                "temp_output_path": "temp-output/"
+            }
+        }
+    }
+}

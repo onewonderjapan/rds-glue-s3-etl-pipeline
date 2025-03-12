@@ -1,40 +1,50 @@
+# AWS Secrets Manager for RDS credentials
+resource "aws_secretsmanager_secret" "rds_secrets" {
+  for_each = local.configs
+  name     = "rds-secret-${each.key}"
+}
+
+resource "aws_secretsmanager_secret_version" "rds_secret_versions" {
+  for_each = local.configs
+  secret_id = aws_secretsmanager_secret.rds_secrets[each.key].id
+  secret_string = jsonencode(each.value["Secrets Manager"])
+}
+
 # 数据库连接
 resource "aws_glue_connection" "mariadb_connection" {
-  name = "terrfromConnectortest"
+  for_each = local.configs
+  name     = "connection-${each.key}"
   
   connection_properties = {
-    JDBC_CONNECTION_URL = "jdbc:mysql://onewonder-maria.cdnrnxfl6xnj.ap-northeast-1.rds.amazonaws.com:3306/onewonder"
+    JDBC_CONNECTION_URL = local.connection_urls[each.key].url
     JDBC_DRIVER_CLASS_NAME = "org.mariadb.jdbc.Driver"
     JDBC_DRIVER_JAR_URI = "s3://mariabd-old/mariadb-java-client-2.7.2.jar"
-    USERNAME = "maria"
-    PASSWORD = "wangxingran1995"  # 在生产环境中应使用 AWS Secrets Manager
+    USERNAME = "{{resolve:secretsmanager:${aws_secretsmanager_secret.rds_secrets[each.key].name}:SecretString:username}}"
+    PASSWORD = "{{resolve:secretsmanager:${aws_secretsmanager_secret.rds_secrets[each.key].name}:SecretString:password}}"
   }
   
   connection_type = "JDBC"
   
   physical_connection_requirements {
-    availability_zone      = "ap-northeast-1a"  # 根据子网所在可用区调整
-    security_group_id_list = ["sg-0e829cc882b945ce9"]
-    subnet_id              = "subnet-070b343906d45de33"
-  }
-  
-  tags = {
-    VPC = "vpc-0ae395ea7178dd0e1"
+    availability_zone      = local.connection_settings.availability_zone
+    security_group_id_list = [local.connection_settings.security_group_id]
+    subnet_id              = local.connection_settings.subnet_id
   }
 }
 
 # Glue 作业定义
 resource "aws_glue_job" "gule_test_job" {
-  name              = "GuleterrfromConnectorjob"
+  for_each          = local.configs
+  name              = "job-${each.key}"
   role_arn          = "arn:aws:iam::566601428909:role/onewonder-glue-test"
-  glue_version      = "5.0"
-  worker_type       = "G.1X"
-  number_of_workers = 2
-  timeout           = 2880 # 默认超时时间，可根据需要调整
+  glue_version      = local.glue_settings.glue_version
+  worker_type       = local.glue_settings.worker_type
+  number_of_workers = local.glue_settings.number_of_workers
+  timeout           = local.glue_settings.timeout_minutes
 
   command {
     name            = "glueetl"
-    script_location = "s3://mariabd-old/scripts/gule_test_job.py"  # 脚本位置 - 会通过 YAML 工作流更新
+    script_location = "s3://mariabd-old/scripts/gule_test_job.py"
     python_version  = "3"
   }
   
@@ -43,9 +53,17 @@ resource "aws_glue_job" "gule_test_job" {
     "--job-language"            = "python"
     "--TempDir"                 = "s3://maria-new/temp/"
     "--spark-event-logs-path"   = "s3://maria-new/sparkHistoryLogs/"
+    # S3 configurations from configs.json
+    "--source_bucket"           = local.s3_paths[each.key].source.bucket
+    "--source_key"              = local.s3_paths[each.key].source.key
+    "--destination_bucket"      = local.s3_paths[each.key].destination.bucket
+    "--destination_file"        = local.s3_paths[each.key].destination.file
+    "--temp_output_path"        = local.s3_paths[each.key].temp
+    # Add secret reference
+    "--secret_name"             = aws_secretsmanager_secret.rds_secrets[each.key].name
   }
 
-  connections = [aws_glue_connection.mariadb_connection.name]
+  connections = [aws_glue_connection.mariadb_connection[each.key].name]
   
   execution_property {
     max_concurrent_runs = 1
