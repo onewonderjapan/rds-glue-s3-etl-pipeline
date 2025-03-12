@@ -1,7 +1,7 @@
 {
     "configs": {               
         "onewonder": {
-            "Secrets Manager": {
+            "SecretsManager": {
                 "username": "maria",
                 "password": "wangxingran1995",
                 "table_name": "onewonder_data",
@@ -15,6 +15,11 @@
             },
             "Glue": {
                 "temp_output_path": "temp-output/"
+            },
+            "Database": {
+                "endpoint": "onewonder-maria.cdnrnxfl6xnj.ap-northeast-1.rds.amazonaws.com",
+                "dbtype": "mysql",
+                "port": "3306"
             }
         }
     }

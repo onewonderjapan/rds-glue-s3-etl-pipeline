@@ -7,7 +7,7 @@ resource "aws_secretsmanager_secret" "rds_secrets" {
 resource "aws_secretsmanager_secret_version" "rds_secret_versions" {
   for_each = local.configs
   secret_id = aws_secretsmanager_secret.rds_secrets[each.key].id
-  secret_string = jsonencode(each.value["Secrets Manager"])
+  secret_string = jsonencode(each.value["SecretsManager"])
 }
 
 # 数据库连接
