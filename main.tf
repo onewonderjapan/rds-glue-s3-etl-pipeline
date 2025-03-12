@@ -19,12 +19,10 @@ resource "aws_glue_connection" "mariadb_connection" {
     JDBC_CONNECTION_URL     = local.connection_urls[each.key].url
     JDBC_DRIVER_CLASS_NAME  = local.connection_settings.jdbc_driver.class_name
     JDBC_DRIVER_JAR_URI     = local.connection_settings.jdbc_driver.jar_uri
+    SECRET_ID               = aws_secretsmanager_secret.rds_secrets[each.key].name
   }
   
   connection_type = "JDBC"
-  
-  # This is the correct way to reference AWS Secrets Manager
-  aws_secret_arn = aws_secretsmanager_secret.rds_secrets[each.key].arn
   
   physical_connection_requirements {
     availability_zone      = local.connection_settings.availability_zone
