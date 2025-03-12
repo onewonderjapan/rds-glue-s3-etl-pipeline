@@ -64,6 +64,8 @@ resource "aws_glue_job" "gule_test_job" {
     "--connection_name"         = aws_glue_connection.mariadb_connection[each.key].name
   }
   
+  connections = [aws_glue_connection.mariadb_connection[each.key].name]
+  
   execution_property {
     max_concurrent_runs = 1
   }
