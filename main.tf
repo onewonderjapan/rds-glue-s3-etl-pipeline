@@ -16,19 +16,20 @@ resource "aws_glue_connection" "mariadb_connection" {
   name     = "connection-${each.key}"
   
   connection_properties = {
-    JDBC_CONNECTION_URL = local.connection_urls[each.key].url
-    JDBC_DRIVER_CLASS_NAME = "org.mariadb.jdbc.Driver"
-    JDBC_DRIVER_JAR_URI = "s3://mariabd-old/mariadb-java-client-2.7.2.jar"
-    USERNAME = "{{resolve:secretsmanager:${aws_secretsmanager_secret.rds_secrets[each.key].name}:SecretString:username}}"
-    PASSWORD = "{{resolve:secretsmanager:${aws_secretsmanager_secret.rds_secrets[each.key].name}:SecretString:password}}"
+    JDBC_CONNECTION_URL     = local.connection_urls[each.key].url
+    JDBC_DRIVER_CLASS_NAME  = local.connection_settings.jdbc_driver.class_name
+    JDBC_DRIVER_JAR_URI     = local.connection_settings.jdbc_driver.jar_uri
   }
   
   connection_type = "JDBC"
   
+  # This is the correct way to reference AWS Secrets Manager
+  aws_secret_arn = aws_secretsmanager_secret.rds_secrets[each.key].arn
+  
   physical_connection_requirements {
     availability_zone      = local.connection_settings.availability_zone
     security_group_id_list = [local.connection_settings.security_group_id]
-    subnet_id              = local.connection_settings.subnet_id
+    subnet_id             = local.connection_settings.subnet_id
   }
 }
 

@@ -16,9 +16,7 @@ locals {
   # 为每个配置生成连接URL
   connection_urls = {
     for key, value in local.configs : key => {
-      url = "jdbc:mysql://onewonder-maria.cdnrnxfl6xnj.ap-northeast-1.rds.amazonaws.com:3306/${value["Secrets Manager"].db_name}"
-      username = value["Secrets Manager"].username
-      password = value["Secrets Manager"].password
+      url = "jdbc:mysql://onewonder-maria.cdnrnxfl6xnj.ap-northeast-1.rds.amazonaws.com:3306/{{resolve:secretsmanager:rds-secret-${key}:SecretString:db_name}}"
     }
   }
 
