@@ -41,3 +41,11 @@ jobs:
       
       - name: Apply Terraform
         run: terraform apply -auto-approve
+
+      - name: Zip Lambda function
+        run: |
+          zip -r ../lambda_function.zip lambda_function.py
+
+      - name: Upload devUser Lambda function
+        run: |
+            aws lambda update-function-code --function-name slack-message --zip-file fileb://lambda_function.zip  

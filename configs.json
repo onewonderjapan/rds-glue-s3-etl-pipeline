@@ -13,9 +13,6 @@
                 "destination_bucket": "maria-new",
                 "destination_file": "test.csv"
             },
-            "Glue": {
-                "temp_output_path": "temp-output/"
-            },
             "Database": {
                 "endpoint": "onewonder-maria.cdnrnxfl6xnj.ap-northeast-1.rds.amazonaws.com",
                 "dbtype": "mysql",

@@ -70,3 +70,41 @@ resource "aws_glue_job" "gule_test_job" {
     max_concurrent_runs = 1
   }
 }
+
+# Lambda function for Slack messaging
+resource "aws_lambda_function" "slack_message" {
+  function_name = "slack-message"
+  role          = "arn:aws:iam::566601428909:role/mariabd-uuid-role-v6kz8gw0"
+  handler       = "index.handler"
+  runtime       = "nodejs14.x"
+  timeout       = 55
+  
+  # Replace with your actual code location
+  filename      = "lambda_function.zip"
+  
+  vpc_config {
+    subnet_ids         = ["subnet-070b343906d45de33", "subnet-0107c820184ab021a"]
+    security_group_ids = ["sg-096831a3b35acbd60", "sg-0ebcc6d9929bb55e2"]
+  }
+}
+
+# S3 bucket notification configuration
+resource "aws_s3_bucket_notification" "bucket_notification" {
+  bucket = "slack-api-message"
+  
+  lambda_function {
+    lambda_function_arn = aws_lambda_function.slack_message.arn
+    events              = ["s3:ObjectCreated:*"]
+    filter_prefix       = ""
+    filter_suffix       = "unmatched_records.json"
+  }
+}
+
+# Lambda permission to allow S3 to invoke the function
+resource "aws_lambda_permission" "allow_bucket" {
+  statement_id  = "AllowExecutionFromS3Bucket"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.slack_message.function_name
+  principal     = "s3.amazonaws.com"
+  source_arn    = "arn:aws:s3:::slack-api-message"
+}
