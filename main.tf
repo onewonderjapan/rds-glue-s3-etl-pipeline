@@ -75,7 +75,7 @@ resource "aws_lambda_function" "slack_message" {
   function_name = "slack-message"
   role          = "arn:aws:iam::566601428909:role/mariabd-uuid-role-v6kz8gw0"
   handler       = "index.handler"
-  runtime       = "nodejs14.x"
+  runtime       = "python3.9"
   timeout       = 55
   
   # Replace with your actual code location
