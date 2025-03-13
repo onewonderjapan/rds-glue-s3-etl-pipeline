@@ -88,7 +88,7 @@ resource "aws_lambda_function" "slack_message" {
 
 # S3 bucket notification configuration
 resource "aws_s3_bucket_notification" "bucket_notification" {
-  bucket = "slack-api-message"
+  bucket = "maria-new"
   
   lambda_function {
     lambda_function_arn = aws_lambda_function.slack_message.arn
