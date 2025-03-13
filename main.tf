@@ -57,7 +57,6 @@ resource "aws_glue_job" "gule_test_job" {
     "--source_key"              = local.s3_paths[each.key].source.key
     "--destination_bucket"      = local.s3_paths[each.key].destination.bucket
     "--destination_file"        = local.s3_paths[each.key].destination.file
-    "--temp_output_path"        = local.s3_paths[each.key].temp
     # Add secret reference
     "--secret_name"             = aws_secretsmanager_secret.rds_secrets[each.key].name
     # connection_name
