@@ -73,7 +73,7 @@ resource "aws_glue_job" "gule_test_job" {
 # Lambda function for Slack messaging
 resource "aws_lambda_function" "slack_message" {
   function_name = "slack-message"
-  role          = "arn:aws:iam::566601428909:role/mariabd-uuid-role-v6kz8gw0"
+  role          = "arn:aws:iam::566601428909:role/service-role/mariabd-uuid-role-v6kz8gw0"
   handler       = "index.handler"
   runtime       = "python3.9"
   timeout       = 55
