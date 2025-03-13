@@ -68,3 +68,4 @@ def lambda_handler(event, context):
                 'message': f'Error: {str(e)}'
             })
         }
+        # 发送到Slack
