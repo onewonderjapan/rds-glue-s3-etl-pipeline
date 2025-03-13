@@ -93,7 +93,7 @@ resource "aws_s3_bucket_notification" "bucket_notification" {
   
   lambda_function {
     lambda_function_arn = aws_lambda_function.slack_message.arn
-    events              = ["s3:ObjectCreated:put"]
+    events              = ["s3:ObjectCreated:Put"]
     filter_prefix       = "unmatched_records.json"
     filter_suffix       = ""
   }
