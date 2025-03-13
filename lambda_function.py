@@ -5,7 +5,7 @@ import os
 
 def lambda_handler(event, context):
     # Slack Webhook URL
-    webhook_url = "https://hooks.slack.com/services/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"
+    webhook_url = ""
     
     try:
         # 从S3事件中获取bucket和key信息
