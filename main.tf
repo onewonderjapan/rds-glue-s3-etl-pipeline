@@ -96,8 +96,6 @@ resource "aws_s3_bucket_notification" "bucket_notification" {
     filter_prefix       = "unmatched_records"
     filter_suffix       = ".json"
   }
-  depends_on = [aws_lambda_permission.allow_maria_new_bucket]
-
 }
 
 # Lambda permission to allow S3 to invoke the function
