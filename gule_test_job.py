@@ -164,32 +164,37 @@ merged_pd_df = merged_pd_df[all_columns]
 unmatched_rds_records = rds_pd_df[~rds_pd_df['id'].isin(s3_ids)]
 print(f"未匹配RDS记录数量: {len(unmatched_rds_records)}")
 
-# 如果有未匹配的记录，将它们上传到S3
+# 如果有未匹配的记录，直接通过Slack API发送消息
 if not unmatched_rds_records.empty:
     try:
-        # 创建包含未匹配记录信息的JSON对象
-        unmatched_data = {
-            "db_name": db_name,
-            "table_name": table_name,
-            "unmatched_ids": unmatched_rds_records['id'].tolist()
-        }
+        # 创建包含未匹配记录信息的消息
+        unmatched_ids = unmatched_rds_records['id'].tolist()
         
-        # 将JSON上传到指定的S3位置
-        s3_client.put_object(
-            Body=json.dumps(unmatched_data, ensure_ascii=False),
-            Bucket="slack-api-message",
-            Key="unmatched_records.json"
+        # 如果ID数量太多，可能会超过Slack消息长度限制，所以只显示前10个ID
+        displayed_ids = unmatched_ids[:10]
+        remaining_count = len(unmatched_ids) - len(displayed_ids)
+        
+        # 组织消息文本
+        message_text = f"*发现{len(unmatched_rds_records)}条RDS记录在S3中没有匹配项*\n"
+        message_text += f"数据库: {db_name}, 表: {table_name}\n"
+        message_text += f"未匹配ID示例: {', '.join(map(str, displayed_ids))}"
+        
+        if remaining_count > 0:
+            message_text += f" 等{remaining_count}条未显示"
+        
+        # 直接发送到Slack
+        requests.post(
+            "https://hooks.slack.com/services/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",
+            json={"text": message_text}
         )
         
-        print(f"已将{len(unmatched_rds_records)}条未匹配记录信息上传到 slack-api-message/unmatched_records.json")
-        requests.post(slack_webhook, json={"text": f"发现{len(unmatched_rds_records)}条RDS记录在S3中没有匹配项，已上传详情到S3"})
+        print(f"已将{len(unmatched_rds_records)}条未匹配记录信息发送到Slack")
         
     except Exception as e:
-        error_message = f"上传未匹配记录失败: {str(e)}"
+        error_message = f"发送未匹配记录到Slack失败: {str(e)}"
         print(error_message)
         requests.post(slack_webhook, json={"text": f"警告: {error_message}"})
         # 继续执行，不终止任务
-
 # 7. 输出到CSV
 try:
     # 将pandas DataFrame写入CSV字符串
