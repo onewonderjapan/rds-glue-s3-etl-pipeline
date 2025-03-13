@@ -93,10 +93,11 @@ resource "aws_s3_bucket_notification" "bucket_notification" {
   lambda_function {
     lambda_function_arn = aws_lambda_function.slack_message.arn
     events              = ["s3:ObjectCreated:Put"]
-    filter_prefix       = "unmatched_records.json"
-    filter_suffix       = ""
+    filter_prefix       = "unmatched_records"
+    filter_suffix       = ".json"
   }
-  
+  depends_on = [aws_lambda_permission.allow_maria_new_bucket]
+
 }
 
 # Lambda permission to allow S3 to invoke the function
@@ -105,6 +106,7 @@ resource "aws_lambda_permission" "allow_bucket" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.slack_message.function_name
   principal     = "s3.amazonaws.com"
-  source_arn    = "arn:aws:s3:::slack-api-message"
+  source_arn    = "arn:aws:s3:::maria-new"
+  source_account = "566601428909"
 }
 
