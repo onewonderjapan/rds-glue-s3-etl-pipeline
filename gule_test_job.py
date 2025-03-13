@@ -2,182 +2,218 @@ import sys
 import json
 import boto3
 import requests
+import pandas as pd
+from io import StringIO
 from awsglue.transforms import *
 from awsglue.utils import getResolvedOptions
 from pyspark.context import SparkContext
 from awsglue.context import GlueContext
 from awsglue.job import Job
 from pyspark.sql import SparkSession, Row
-# 修改这一行，确保包含udf
-from pyspark.sql.functions import col, lit, when, isnan, isnull, expr, udf
-from pyspark.sql.types import IntegerType
+from pyspark.sql.functions import col, lit, when, isnan, isnull, expr, udf, pandas_udf
+from pyspark.sql.types import IntegerType, StringType, StructType
+import pyspark.sql.functions as F
 
 # 初始化 Spark 和 Glue 上下文
-args = getResolvedOptions(sys.argv, ['JOB_NAME'])
+args = getResolvedOptions(sys.argv, [
+    'JOB_NAME', 
+    'source_bucket', 
+    'source_key', 
+    'destination_bucket', 
+    'destination_file', 
+    'temp_output_path',
+    'secret_name',
+    'connection_name'
+])
 sc = SparkContext()
 glueContext = GlueContext(sc)
 spark = glueContext.spark_session
 job = Job(glueContext)
 job.init(args['JOB_NAME'], args)
 
+# 从参数获取源和目标信息
+source_bucket = args['source_bucket']
+source_key = args['source_key']
+destination_bucket = args['destination_bucket']
+destination_file = args['destination_file']
+temp_output_path = args['temp_output_path']
+secret_name = args['secret_name']
+connection_name = args['connection_name']
+
+# 获取数据库连接凭证
+secrets_client = boto3.client('secretsmanager')
+secret_response = secrets_client.get_secret_value(SecretId=secret_name)
+db_credentials = json.loads(secret_response['SecretString'])
+
 # 定义数据库连接参数
-rds_host = "onewonder-maria.cdnrnxfl6xnj.ap-northeast-1.rds.amazonaws.com"
-username = "maria"
-password = "wangxingran1995"
-db_name = "onewonder"
-table_name = "onewonder_data"
+db_name = db_credentials.get('db_name')
+table_name = db_credentials.get('table_name')
+slack_webhook = db_credentials.get('slack_webhook', "https://hooks.slack.com/services/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")
+print(f"数据库 {db_name}，表 {table_name}")
 
-# 1. 从 S3 读取 JSON 数据
+# 1. 从S3读取JSON数据（作为主数据源）
 s3_client = boto3.client('s3')
-response = s3_client.get_object(Bucket='mariabd-old', Key='test.json')
-json_content = response['Body'].read().decode('utf-8')
-
-# 2. 解析 JSON 并保留原始字段顺序
-json_data = json.loads(json_content)
-# 获取所有可能的字段集合
-all_s3_fields = set()
-# 跟踪原始数据顺序
-s3_record_orders = {}
-
-# 遍历所有JSON对象收集字段和记录顺序
-for idx, item in enumerate(json_data):
-    s3_record_orders[item.get("id")] = idx
-    for field in item.keys():
-        all_s3_fields.add(field)
-
-# 从第一个对象获取基本字段顺序
-base_field_order = list(json_data[0].keys() if json_data else [])
-# 确保所有JSON对象的字段都被包括在内
-json_field_order = base_field_order.copy()
-for field in all_s3_fields:
-    if field not in json_field_order:
-        json_field_order.append(field)
-
-print(f"JSON字段顺序: {json_field_order}")
-
-# 3. 将JSON加载到Spark DataFrame
-json_df = spark.read.json(
-    sc.parallelize([json_content]),
-    multiLine=True
-)
-print("JSON数据结构:")
-json_df.printSchema()
-
-# 将JSON数据中的列添加前缀
-json_df_prefixed = json_df.select([col(c).alias(f"json_{c}") for c in json_df.columns])
+try:
+    s3_response = s3_client.get_object(Bucket=source_bucket, Key=source_key)
+    json_content = s3_response['Body'].read().decode('utf-8')
+    
+    # 2. 解析JSON并保留原始顺序
+    # 3. 使用pandas读取JSON
+    s3_df_pd = pd.read_json(StringIO(json_content), orient='records')
+    
+    # 保留原始S3数据（未初始化额外列之前）
+    original_s3_data = s3_df_pd.copy()
+    
+    # 获取原始S3列顺序（仅包括在JSON中实际存在的列）
+    original_s3_columns = list(s3_df_pd.columns)
+    print(f"S3 原始数据列: {original_s3_columns}")
+    print(f"S3 数据行数: {s3_df_pd.shape[0]}")
+    
+    # 转换为Spark DataFrame（用于后续处理）
+    s3_df = spark.createDataFrame(s3_df_pd)
+    
+except Exception as e:
+    error_message = f"读取S3数据失败: {str(e)}"
+    print(error_message)
+    requests.post(slack_webhook, json={"text": f"ETL任务失败: {error_message}"})
+    sys.exit(1)
 
 # 4. 从RDS读取数据
-maria_df = glueContext.create_dynamic_frame.from_options(
-    connection_type="mysql",
-    connection_options={
-        "url": f"jdbc:mysql://{rds_host}:3306/{db_name}",
-        "user": username,
-        "password": password,
-        "connectionName": "Mariadb connection",
-        "dbtable": table_name
-    }
-).toDF()
-print("MariaDB数据结构:")
-maria_df.printSchema()
+try:
+    maria_df = glueContext.create_dynamic_frame.from_options(
+        connection_type="mysql",
+        connection_options={
+            "connectionName": connection_name,
+            "dbtable": table_name,
+            "database": db_name,
+            "useConnectionProperties": "true"
+        }
+    ).toDF()
+    
+    # 将RDS数据转换为pandas DataFrame
+    rds_pd_df = maria_df.toPandas()
+    
+    print(f"RDS 数据列: {maria_df.columns}")
+    print(f"RDS 数据行数: {maria_df.count()}")
+    
+except Exception as e:
+    error_message = f"读取RDS数据失败: {str(e)}"
+    print(error_message)
+    requests.post(slack_webhook, json={"text": f"ETL任务失败: {error_message}"})
+    sys.exit(1)
 
-# 将MariaDB数据中的列添加前缀
-maria_df_prefixed = maria_df.select([col(c).alias(f"maria_{c}") for c in maria_df.columns])
+# 5. 根据id列进行匹配
+# 确保两个DataFrame都有id列
+if 'id' not in s3_df.columns or 'id' not in maria_df.columns:
+    error_message = "S3数据或RDS数据中缺少id列"
+    print(error_message)
+    requests.post(slack_webhook, json={"text": f"ETL任务失败: {error_message}"})
+    sys.exit(1)
 
-# 5. 获取所有可能的列（S3和RDS的并集）
-s3_columns = set(json_df.columns)
-rds_columns = set(maria_df.columns)
-all_possible_columns = s3_columns.union(rds_columns)
+# 获取所有可能的列（RDS和S3的所有列并集）
+all_possible_columns = set(original_s3_columns) | set(rds_pd_df.columns)
+print(f"所有可能的列: {all_possible_columns}")
 
-# 6. 构建最终列顺序
-# 首先添加JSON字段顺序中的列（按原始顺序）
-final_prefixed_columns = []
-for field in json_field_order:
-    prefixed_field = f"json_{field}"
-    if prefixed_field in json_df_prefixed.columns:
-        final_prefixed_columns.append(prefixed_field)
+# 正确处理每个记录
+result_rows = []
 
-# 然后添加在RDS中有但不在JSON字段顺序中的列
-for field in rds_columns:
-    prefixed_field = f"maria_{field}"
-    original_field = field
-    if original_field not in json_field_order and prefixed_field in maria_df_prefixed.columns:
-        final_prefixed_columns.append(prefixed_field)
+# 收集S3数据中的所有ID，用于后续查找未匹配的RDS记录
+s3_ids = set(original_s3_data['id'].tolist())
+print(f"S3 ID数量: {len(s3_ids)}")
 
-print(f"最终带前缀的列顺序: {final_prefixed_columns}")
-
-# 7. 添加排序列以保持原始记录顺序
-def get_order(id_val):
-    return s3_record_orders.get(id_val, 999999)
-
-# 这里使用udf，确保它已经被导入
-order_udf = udf(get_order, IntegerType())
-json_df_prefixed = json_df_prefixed.withColumn("original_order", order_udf(col("json_id")))
-
-# 8. 合并数据 - 使用left join保留所有JSON记录
-joined_df = json_df_prefixed.join(
-    maria_df_prefixed,
-    json_df_prefixed["json_id"] == maria_df_prefixed["maria_id"],
-    "left"
-)
-
-# 9. 确保所有列都在结果中
-result_columns = []
-for col_name in final_prefixed_columns:
-    if col_name in joined_df.columns:
-        result_columns.append(col_name)
+# 逐行处理S3数据
+for _, s3_row in original_s3_data.iterrows():
+    s3_id = s3_row['id']
+    
+    # 查找对应的RDS行
+    rds_match = rds_pd_df[rds_pd_df['id'] == s3_id]
+    
+    if not rds_match.empty:
+        rds_row = rds_match.iloc[0]
+        
+        # 创建新行，以S3数据为基础
+        new_row = {}
+        
+        # 遍历所有可能的列
+        for col in all_possible_columns:
+            # 检查原始S3数据中是否包含此列（非NaN值）
+            s3_has_column = col in s3_row.index and pd.notna(s3_row[col])
+            
+            if s3_has_column:
+                # 如果S3有此列，使用S3的值
+                new_row[col] = s3_row[col]
+            elif col in rds_row.index:
+                # 如果S3没有但RDS有，使用RDS的值
+                new_row[col] = rds_row[col]
+            else:
+                # 两者都没有，设为NaN
+                new_row[col] = None
+        
+        result_rows.append(new_row)
     else:
-        # 如果列不存在，添加空列
-        joined_df = joined_df.withColumn(col_name, lit(None))
-        result_columns.append(col_name)
+        # 没有匹配的RDS记录，只使用S3数据
+        new_row = {col: s3_row[col] if col in s3_row.index else None for col in all_possible_columns}
+        result_rows.append(new_row)
 
-# 10. 选择最终列并排序
-result_df = joined_df.select(result_columns + ["original_order"]).orderBy("original_order")
+# 创建最终的DataFrame
+merged_pd_df = pd.DataFrame(result_rows)
 
-# 删除排序列
-result_df = result_df.drop("original_order")
+# 确保列的顺序：首先是所有原始S3列，然后是其他列
+all_columns = list(original_s3_columns) + [col for col in all_possible_columns if col not in original_s3_columns]
+merged_pd_df = merged_pd_df[all_columns]
 
-# 11. 将结果写入CSV
-result_df.coalesce(1).write \
-    .mode("overwrite") \
-    .option("header", "true") \
-    .csv("s3://maria-new/temp-output/")
+# 6. 找出RDS中有但S3中没有的记录
+unmatched_rds_records = rds_pd_df[~rds_pd_df['id'].isin(s3_ids)]
+print(f"未匹配RDS记录数量: {len(unmatched_rds_records)}")
 
-# 12. 移动并重命名CSV文件
-s3_resource = boto3.resource('s3')
-bucket = s3_resource.Bucket('maria-new')
-csv_file = None
+# 如果有未匹配的记录，将它们上传到S3
+if not unmatched_rds_records.empty:
+    try:
+        # 创建包含未匹配记录信息的JSON对象
+        unmatched_data = {
+            "db_name": db_name,
+            "table_name": table_name,
+            "unmatched_ids": unmatched_rds_records['id'].tolist()
+        }
+        
+        # 将JSON上传到指定的S3位置
+        s3_client.put_object(
+            Body=json.dumps(unmatched_data, ensure_ascii=False),
+            Bucket="slack-api-message",
+            Key="unmatched_records.json"
+        )
+        
+        print(f"已将{len(unmatched_rds_records)}条未匹配记录信息上传到 slack-api-message/unmatched_records.json")
+        requests.post(slack_webhook, json={"text": f"发现{len(unmatched_rds_records)}条RDS记录在S3中没有匹配项，已上传详情到S3"})
+        
+    except Exception as e:
+        error_message = f"上传未匹配记录失败: {str(e)}"
+        print(error_message)
+        requests.post(slack_webhook, json={"text": f"警告: {error_message}"})
+        # 继续执行，不终止任务
 
-for obj in bucket.objects.filter(Prefix='temp-output/'):
-    if obj.key.endswith('.csv'):
-        csv_file = obj.key
-        break
-
-if csv_file:
-    s3_resource.Object('maria-new', 'test.csv').copy_from(
-        CopySource={'Bucket': 'maria-new', 'Key': csv_file}
+# 7. 输出到CSV
+try:
+    # 将pandas DataFrame写入CSV字符串
+    csv_buffer = StringIO()
+    merged_pd_df.to_csv(csv_buffer, index=False)
+    
+    # 上传到S3
+    s3_client.put_object(
+        Body=csv_buffer.getvalue(),
+        Bucket=destination_bucket,
+        Key=destination_file
     )
     
-    for obj in bucket.objects.filter(Prefix='temp-output/'):
-        obj.delete()
-
-# 13. 查找在RDS中存在但S3中不存在的ID，并发送Slack通知
-json_ids = [row["json_id"] for row in json_df_prefixed.select("json_id").collect()]
-maria_ids = [row["maria_id"] for row in maria_df_prefixed.select("maria_id").collect()]
-missing_ids = set(maria_ids) - set(json_ids)
-
-if missing_ids:
-    message_lines = [f"数据库 {db_name} 中存在以下ID在S3中不存在:"]
-    for missing_id in missing_ids:
-        message_lines.append(f"TABLE：{table_name} UUID： {missing_id}")
+    success_message = f"ETL任务成功: 已将{merged_pd_df.shape[0]}行数据写入到 {destination_bucket}/{destination_file}"
+    print(success_message)
+    requests.post(slack_webhook, json={"text": success_message})
     
-    formatted_message = "\n".join(message_lines)
-    
-    webhook_url = "https://hooks.slack.com/services/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"
-    slack_message = {
-        "text": formatted_message
-    }
-    response = requests.post(webhook_url, json=slack_message)
-    print(f"Slack通知已发送，状态码: {response.status_code}")
+except Exception as e:
+    error_message = f"写入CSV失败: {str(e)}"
+    print(error_message)
+    requests.post(slack_webhook, json={"text": f"ETL任务失败: {error_message}"})
+    sys.exit(1)
 
-# 提交作业
+# 完成作业
 job.commit()
