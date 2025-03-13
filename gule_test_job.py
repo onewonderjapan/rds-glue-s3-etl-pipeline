@@ -21,7 +21,6 @@ args = getResolvedOptions(sys.argv, [
     'source_key', 
     'destination_bucket', 
     'destination_file', 
-    'temp_output_path',
     'secret_name',
     'connection_name'
 ])
@@ -36,7 +35,6 @@ source_bucket = args['source_bucket']
 source_key = args['source_key']
 destination_bucket = args['destination_bucket']
 destination_file = args['destination_file']
-temp_output_path = args['temp_output_path']
 secret_name = args['secret_name']
 connection_name = args['connection_name']
 
