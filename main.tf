@@ -72,14 +72,13 @@ resource "aws_glue_job" "gule_test_job" {
 
 # Lambda function for Slack messaging
 resource "aws_lambda_function" "slack_message" {
-  function_name = "slack-message"
-  role          = "arn:aws:iam::566601428909:role/service-role/mariabd-uuid-role-v6kz8gw0"
-  handler       = "index.handler"
-  runtime       = "python3.9"
-  timeout       = 55
-  
-  # Replace with your actual code location
-  filename      = "lambda_function.zip"
+  function_name    = "slack-message"
+  role             = "arn:aws:iam::566601428909:role/service-role/mariabd-uuid-role-v6kz8gw0"
+  handler          = "lambda_function.handler"  # 确保处理程序名称正确
+  runtime          = "python3.9"
+  timeout          = 55
+  filename         = "lambda_function.zip"
+  source_code_hash = filebase64sha256("lambda_function.zip")
   
   vpc_config {
     subnet_ids         = ["subnet-070b343906d45de33", "subnet-0107c820184ab021a"]
