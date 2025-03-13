@@ -107,3 +107,4 @@ resource "aws_lambda_permission" "allow_bucket" {
   principal     = "s3.amazonaws.com"
   source_arn    = "arn:aws:s3:::slack-api-message"
 }
+
