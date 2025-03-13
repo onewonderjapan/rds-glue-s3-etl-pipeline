@@ -96,6 +96,7 @@ resource "aws_s3_bucket_notification" "bucket_notification" {
     filter_prefix       = "unmatched_records.json"
     filter_suffix       = ""
   }
+  
 }
 
 # Lambda permission to allow S3 to invoke the function
