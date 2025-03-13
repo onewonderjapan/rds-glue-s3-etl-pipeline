@@ -31,7 +31,6 @@ locals {
         bucket = value.S3.destination_bucket
         file   = value.S3.destination_file
       }
-      temp = value.Glue.temp_output_path
     }
   }
 }
