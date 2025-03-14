@@ -3,13 +3,15 @@
 - [OneWonder](https://www.onewonder.co.jp/) はクラウドコンピューティングに特化したサービスを提供しています
 ## 使用技術一覧
 
-<img src="https://img.shields.io/badge/-Microsoft-666666.svg?logo=microsoft&style=popout">
-<img src="https://img.shields.io/badge/-Microsoftonedrive-094AB2.svg?logo=microsoftonedrive&style=popout">
 <img src="https://img.shields.io/badge/-python-5391FE.svg?logo=python&style=popout">
 <img src="https://img.shields.io/badge/-Amazon%20aws-232F3E.svg?logo=amazon-aws&style=popout">
 
-# GLue逻辑处理流程
+## アーキテクチャ図
+- [glue.drawio](docs)
+<img src="image/glue.drawio.png">
 
+# GLue逻辑处理流程
+- [gule_test_job.py]
 ```mermaid
 flowchart TD
     A[初始化 Spark/Glue 上下文] --> B[获取任务参数]
