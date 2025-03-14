@@ -79,6 +79,7 @@ except Exception as e:
 # 4. 从RDS读取数据
 try:
     maria_df = glueContext.create_dynamic_frame.from_options(
+        # JDBC连接maria的时候是使用的mysql
         connection_type="mysql",
         connection_options={
             "connectionName": connection_name,
