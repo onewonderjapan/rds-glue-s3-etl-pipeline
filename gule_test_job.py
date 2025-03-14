@@ -22,7 +22,8 @@ args = getResolvedOptions(sys.argv, [
     'destination_bucket', 
     'destination_file', 
     'secret_name',
-    'connection_name'
+    'connection_name',
+    'slack_webhook'
 ])
 sc = SparkContext()
 glueContext = GlueContext(sc)
@@ -37,6 +38,7 @@ destination_bucket = args['destination_bucket']
 destination_file = args['destination_file']
 secret_name = args['secret_name']
 connection_name = args['connection_name']
+slack_webhook = args['slack_webhook']
 
 # 获取数据库连接凭证
 secrets_client = boto3.client('secretsmanager')
@@ -46,7 +48,6 @@ db_credentials = json.loads(secret_response['SecretString'])
 # 定义数据库连接参数
 db_name = db_credentials.get('db_name')
 table_name = db_credentials.get('table_name')
-slack_webhook = db_credentials.get('slack_webhook', "https://hooks.slack.com/services/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")
 print(f"数据库 {db_name}，表 {table_name}")
 
 # 1. 从S3读取JSON数据（作为主数据源）

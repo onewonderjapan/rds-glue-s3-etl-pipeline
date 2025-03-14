@@ -33,6 +33,13 @@ locals {
       }
     }
   }
+  
+  # 为每个配置获取Slack Webhook URL
+  slack_webhooks = {
+    for key, value in local.configs : key => {
+      webhook_url = try(value.slack.slack_webhook, "")
+    }
+  }
 }
 
 # 输出配置以供检查
@@ -49,4 +56,10 @@ output "glue_settings" {
 output "connection_settings" {
   value = local.connection_settings
   description = "Connection common settings"
+}
+
+output "slack_webhooks" {
+  value = local.slack_webhooks
+  description = "Slack webhook URLs for each configuration"
+  sensitive = true
 } 

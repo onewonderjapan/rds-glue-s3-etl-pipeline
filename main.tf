@@ -61,6 +61,8 @@ resource "aws_glue_job" "gule_test_job" {
     "--secret_name"             = aws_secretsmanager_secret.rds_secrets[each.key].name
     # connection_name
     "--connection_name"         = aws_glue_connection.mariadb_connection[each.key].name
+    # Slack webhook URL
+    "--slack_webhook"           = local.slack_webhooks[each.key].webhook_url
   }
   
   connections = [aws_glue_connection.mariadb_connection[each.key].name]
