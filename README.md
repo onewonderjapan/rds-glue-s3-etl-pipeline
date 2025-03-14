@@ -6,12 +6,26 @@
 <img src="https://img.shields.io/badge/-python-5391FE.svg?logo=python&style=popout">
 <img src="https://img.shields.io/badge/-Amazon%20aws-232F3E.svg?logo=amazon-aws&style=popout">
 
+## プロジェクト名
+rds-glue-s3-etl-pipeline
+
+## プロジェクト概要
+本プロジェクトはAWS Glue（PySpark）をデータ処理エンジンとして活用し、AWS Secrets Managerでデータベース認証情報を安全に管理しています。また、Webhook経由でSlack通知機能を統合し、完全な自動データ処理と監視フローを実現しています。このアーキテクチャは、JSONデータとリレーショナルデータベースのデータを定期的に統合し、特定の形式を維持する必要があるシナリオに最適です。
+
 ## アーキテクチャ図
 - [glue.drawio](docs)
-<img src="image/glue.drawio.png">
+<img src="image/glue.drawio.png" alt="アーキテクチャ図" style="width: 100%;">
 
+### 処理フロー
+① **データセキュリティ**: 赤色の鍵アイコン（rds-secret-onewonder）からデータベース認証情報を取得し、中央のjob-wonder処理コンポーネントに渡します。
+② **データベース接続**: 取得した認証情報を使用して上部のmegaRDSデータベースに接続し、データを読み取ります。
+③ **入力データ取得**: 左側のS3バケットからtest.jsonファイルを入力データソースとして読み取ります。
+④ **状態通知**: 下部に接続されているSlack APIを通じて、処理状態と結果通知をSlackに送信します。
+⑤ **出力データ保存**: 処理完了後、結果データをtest.csv形式で右側のS3バケットに出力します。
+
+全体のプロセスは黄色の枠（AWS GlueまたはLambda環境を表す）内で実行され、中心のjob-wonderコンポーネントがすべてのデータフローと変換操作を調整・処理します。
 # GLue逻辑处理流程
-- [gule_test_job.py]
+- [gule_test_job.py](gule_test_job.py)
 ```mermaid
 flowchart TD
     A[初始化 Spark/Glue 上下文] --> B[获取任务参数]
