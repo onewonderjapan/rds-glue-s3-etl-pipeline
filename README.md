@@ -26,7 +26,8 @@ rds-glue-s3-etl-pipeline
 全体のプロセスは黄色の枠（Terraform化にする）内で実行され、中心のGlue(job-wonder)がすべてのデータフローと変換操作を調整・処理します。
 # GLue逻辑处理流程
 - [gule_test_job.py](gule_test_job.py)
-
+  
+```mermaid
 %%{init: {'flowchart': {'nodeSpacing': 30, 'rankSpacing': 80, 'width': 700}}}%%
 flowchart LR
     subgraph 初始化
