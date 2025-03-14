@@ -26,43 +26,32 @@ rds-glue-s3-etl-pipeline
 全体のプロセスは黄色の枠（Terraform化にする）内で実行され、中心のGlue(job-wonder)がすべてのデータフローと変換操作を調整・処理します。
 # GLue逻辑处理流程
 - [gule_test_job.py](gule_test_job.py)
-  
 ```mermaid
-%%{init: {'flowchart': {'nodeSpacing': 30, 'rankSpacing': 80, 'width': 700}}}%%
-flowchart LR
-    subgraph 初始化
-    A[初始化] --> B[获取参数]
-    B --> C[获取凭证]
-    end
+flowchart TD
+    classDef default fill:#f9f9f9,stroke:#333,stroke-width:0.5px,font-size:8px;
     
-    subgraph 数据读取
-    C --> D[读取S3]
-    D -->|成功| F[读取RDS]
-    D -->|失败| E[错误通知]
-    end
-    
-    subgraph 数据处理
-    F -->|成功| G[验证ID列]
+    A[初始化 Spark/Glue 上下文] --> B[获取任务参数]
+    B --> C[从 AWS Secrets Manager 获取数据库凭证]
+    C --> D[从 S3 读取 JSON 数据]
+    D -->|成功| F[从 RDS 读取数据]
+    D -->|失败| E[发送错误通知到 Slack 并退出]
+    F -->|成功| G[验证两个数据源都有 id 列]
     F -->|失败| E
-    G -->|通过| H[获取所有列]
-    G -->|失败| E
-    H --> I[收集S3 ID]
-    I --> J[处理S3数据]
-    end
-    
-    subgraph 数据合并
-    J --> K[匹配处理]
-    K --> N[创建结果集]
-    N --> O[最终DataFrame]
-    end
-    
-    subgraph 输出处理
-    O --> P[查找未匹配记录]
-    P --> Q{有未匹配?}
-    Q -->|是| R[发送通知]
-    Q -->|否| S[写入CSV]
+    G -->|验证通过| H[获取所有可能的列]
+    G -->|验证失败| E
+    H --> I[收集 S3 数据中的所有 ID]
+    I --> J[遍历处理 S3 数据]
+    J --> K[找到匹配] & M[未找到匹配]
+    K -->|找到匹配| L[合并数据: 优先使用 S3 值，缺失时使用 RDS 值]
+    K -->|未找到匹配| M[只使用 S3 数据]
+    L --> N[新加到结果集]
+    M --> N
+    N --> O[创建最终 DataFrame 并保持列顺序]
+    O --> P[查找 RDS 中有但 S3 中没有的记录]
+    P --> Q[有未匹配记录?]
+    Q -->|是| R[发送未匹配记录信息到 Slack]
+    Q -->|否| S[将结果写入 CSV]
     R --> S
-    S -->|成功| T[成功通知]
+    S -->|成功| T[发送成功通知到 Slack]
     S -->|失败| E
-    T --> U[完成]
-    end
+    T --> U[完成作业]
