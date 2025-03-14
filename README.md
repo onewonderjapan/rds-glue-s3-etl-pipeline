@@ -1,6 +1,6 @@
 <img src="image/logo.jpg" alt="公司 Logo" style="width: 100%; display: block;">
 
-- [OneWonder](https://www.onewonder.co.jp/) はクラウドコンピューティングに特化したサービスを提供しています
+- [OneWonder](https://next.onewonder.co.jp/) はクラウドコンピューティングに特化したサービスを提供しています
 
 ## 使用技術一覧
 
