@@ -5,8 +5,7 @@
 
 <img src="https://img.shields.io/badge/-Microsoft-666666.svg?logo=microsoft&style=popout">
 <img src="https://img.shields.io/badge/-Microsoftonedrive-094AB2.svg?logo=microsoftonedrive&style=popout">
-<img src="https://img.shields.io/badge/-Powershell-5391FE.svg?logo=powershell&style=popout">
-<img src="https://img.shields.io/badge/-Azure%20devops-0078D7.svg?logo=azure-devops&style=plastic">
+<img src="https://img.shields.io/badge/-python-5391FE.svg?logo=python&style=popout">
 <img src="https://img.shields.io/badge/-Amazon%20aws-232F3E.svg?logo=amazon-aws&style=popout">
 
 # GLue逻辑处理流程
