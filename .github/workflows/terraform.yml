@@ -27,10 +27,6 @@ jobs:
         run: |
           aws s3 cp ./gule_test_job.py s3://mariabd-old/scripts/gule_test_job.py
           
-      - name: Zip Lambda function
-        run: |
-          zip -r lambda_function.zip lambda_function.py
-          
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v1
         with:
