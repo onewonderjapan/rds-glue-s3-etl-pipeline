@@ -68,3 +68,6 @@ flowchart TD
 蔡：inje.sai@onewonder.co.jp</br>
 
 王：xingran.wang@onewonder.co.jp
+
+#### SlackApiについて
+もしslackapiがパブリックリポジトリにコミットしたら無効になれます。
