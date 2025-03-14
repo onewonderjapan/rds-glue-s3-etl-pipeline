@@ -46,7 +46,7 @@ db_credentials = json.loads(secret_response['SecretString'])
 # 定义数据库连接参数
 db_name = db_credentials.get('db_name')
 table_name = db_credentials.get('table_name')
-slack_webhook = db_credentials.get('slack_webhook', "https://hooks.slack.com/services/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")
+slack_webhook = db_credentials.get('slack_webhook', "https://hooks.slack.com/services/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")
 print(f"数据库 {db_name}，表 {table_name}")
 
 # 1. 从S3读取JSON数据（作为主数据源）
@@ -184,7 +184,7 @@ if not unmatched_rds_records.empty:
         
         # 直接发送到Slack
         requests.post(
-            "https://hooks.slack.com/services/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",
+           slack_webhook,
             json={"text": message_text}
         )
         
